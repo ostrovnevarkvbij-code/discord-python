@@ -1,2 +1,44 @@
 [deploy]
 startCommand = "uv run python bot.py"
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+intents = discord.Intents.default()
+intents.members = True  # важно для банов
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+@bot.event
+async def on_ready():
+    print(f"Бот запущен как {bot.user}")
+    try:
+        synced = await bot.tree.sync()
+        print(f"Синхронизировано команд: {len(synced)}")
+    except Exception as e:
+        print(e)
+
+
+# Slash-команда /бан
+@bot.tree.command(name="бан", description="Забанить участника")
+@app_commands.describe(user="Пользователь для бана", reason="Причина бана")
+async def ban(interaction: discord.Interaction, user: discord.Member, reason: str = "Причина не указана"):
+    
+    # проверка прав
+    if not interaction.user.guild_permissions.ban_members:
+        await interaction.response.send_message("❌ У тебя нет прав на бан.", ephemeral=True)
+        return
+
+    try:
+        await user.ban(reason=reason)
+        await interaction.response.send_message(
+            f"✅ Пользователь {user.mention} забанен.\nПричина: {reason}"
+        )
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ У меня нет прав на бан этого пользователя.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"Ошибка: {e}", ephemeral=True)
+
+
+bot.run("YOUR_BOT_TOKEN")
